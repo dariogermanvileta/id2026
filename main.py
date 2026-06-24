@@ -486,7 +486,7 @@ def crear_pedido(data: PedidoCreate, db: Session = Depends(get_db), _=Depends(ge
         RETURNING id, numero
     """), {**data.dict(exclude={"items"}), "numero": numero}).fetchone()
     pid = row.id
- for item in data.items:
+    for item in data.items:
         db.execute(text("""
             INSERT INTO pedido_muestras_items (pedido_id,rotulo,volumen_l,presentacion_id,observaciones)
             VALUES (:pedido_id,:rotulo,:volumen_l,:presentacion_id,:observaciones)
@@ -635,6 +635,54 @@ def registrar_consumo(data: dict, db: Session = Depends(get_db), _=Depends(get_c
         INSERT INTO droguero_consumos (item_id,cantidad,experimento_id,operador_id,motivo)
         VALUES (:item_id,:cantidad,:experimento_id,:operador_id,:motivo)
     """), data)
+    db.commit()
+    return {"ok": True}
+
+# ─── MEDIOS DE CULTIVO ───────────────────────────────────────
+
+class MedioPedidoCreate(BaseModel):
+    fecha_requerida: Optional[date] = None
+    medio: str
+    volumen_l: Optional[float] = None
+    presentacion: Optional[str] = None
+    num_unidades: Optional[int] = None
+    solicitante_id: Optional[int] = None
+    responsable_id: Optional[int] = None
+    observaciones: Optional[str] = None
+
+@app.post("/medios/pedidos", status_code=201)
+def crear_medio_pedido(data: MedioPedidoCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    ultimo = db.execute(text("SELECT COALESCE(MAX(numero),0) FROM medios_pedidos")).scalar()
+    numero = ultimo + 1
+    row = db.execute(text("""
+        INSERT INTO medios_pedidos (numero,fecha_requerida,medio,volumen_l,presentacion,num_unidades,
+            solicitante_id,responsable_id,observaciones)
+        VALUES (:numero,:fecha_requerida,:medio,:volumen_l,:presentacion,:num_unidades,
+            :solicitante_id,:responsable_id,:observaciones)
+        RETURNING id, numero
+    """), {**data.dict(), "numero": numero}).fetchone()
+    db.commit()
+    return {"id": row.id, "numero": row.numero}
+
+@app.get("/medios/pedidos")
+def listar_medios_pedidos(estado: Optional[str] = None, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    filters = "WHERE 1=1"
+    params: dict = {}
+    if estado: filters += " AND mp.estado=:estado"; params["estado"] = estado
+    rows = db.execute(text(f"""
+        SELECT mp.*, us.nombre as solicitante_nombre, ur.nombre as responsable_nombre
+        FROM medios_pedidos mp
+        LEFT JOIN usuarios us ON us.id = mp.solicitante_id
+        LEFT JOIN usuarios ur ON ur.id = mp.responsable_id
+        {filters}
+        ORDER BY mp.numero DESC
+        LIMIT 100
+    """), params).fetchall()
+    return {"items": [dict(r._mapping) for r in rows]}
+
+@app.patch("/medios/pedidos/{id}/estado")
+def actualizar_estado_medio_pedido(id: int, estado: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    db.execute(text("UPDATE medios_pedidos SET estado=:e, updated_at=NOW() WHERE id=:id"), {"e": estado, "id": id})
     db.commit()
     return {"ok": True}
 
