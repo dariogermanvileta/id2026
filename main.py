@@ -80,12 +80,12 @@ def calcular_ufc(recuentos: list, factor: float, dilucion: float, volumen: float
         return None
     return round((sum(vals) / len(vals)) * factor * dilucion / volumen, 2)
 
-def calcular_conidios(recuentos: list, dilucion: float, volumen: float) -> Optional[float]:
-    """(Promedio × dilución) / volumen"""
+def calcular_conidios(recuentos: list, factor: float, volumen: float = 1) -> Optional[float]:
+    """Promedio × factor (factor ya incluye dilución y constante de cámara)"""
     vals = [r for r in recuentos if r is not None and r > 0]
     if not vals:
         return None
-    return round((sum(vals) / len(vals)) * dilucion / volumen, 2)
+    return round((sum(vals) / len(vals)) * factor, 2)
 
 def formatear_ufc(valor: float) -> str:
     if not valor:
