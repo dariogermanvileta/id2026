@@ -686,6 +686,42 @@ def actualizar_estado_medio_pedido(id: int, estado: str, db: Session = Depends(g
     db.commit()
     return {"ok": True}
 
+# ─── ELIMINACIÓN (solo admin) ────────────────────────────────
+
+def _check_admin(user):
+    if user["rol"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo los administradores pueden eliminar registros")
+
+@app.delete("/pedidos/{id}", status_code=204)
+def eliminar_pedido(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    _check_admin(user)
+    db.execute(text("DELETE FROM pedidos_muestras WHERE id=:id"), {"id": id})
+    db.commit()
+
+@app.delete("/experimentos/{id}", status_code=204)
+def eliminar_experimento(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    _check_admin(user)
+    db.execute(text("DELETE FROM experimentos WHERE id=:id"), {"id": id})
+    db.commit()
+
+@app.delete("/cc/micro/{id}", status_code=204)
+def eliminar_cc_micro(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    _check_admin(user)
+    db.execute(text("DELETE FROM cc_microbiologico WHERE id=:id"), {"id": id})
+    db.commit()
+
+@app.delete("/cc/biomolecular/{id}", status_code=204)
+def eliminar_cc_bm(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    _check_admin(user)
+    db.execute(text("DELETE FROM cc_biomolecular WHERE id=:id"), {"id": id})
+    db.commit()
+
+@app.delete("/medios/pedidos/{id}", status_code=204)
+def eliminar_medio_pedido(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    _check_admin(user)
+    db.execute(text("DELETE FROM medios_pedidos WHERE id=:id"), {"id": id})
+    db.commit()
+
 # ─── HEALTH ──────────────────────────────────────────────────
 
 @app.get("/health")
