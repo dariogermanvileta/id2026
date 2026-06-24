@@ -102,36 +102,36 @@ class LoginResponse(BaseModel):
     usuario: dict
 
 class ExperimentoCreate(BaseModel):
-    nombre: Optional[str]
+    nombre: Optional[str] = None
     cepa_id: int
-    medio_id: Optional[int]
-    reactor_id: Optional[int]
-    volumen_l: Optional[float]
-    cultivo_objetivo: Optional[str]
-    producto_final: Optional[str]
+    medio_id: Optional[int] = None
+    reactor_id: Optional[int] = None
+    volumen_l: Optional[float] = None
+    cultivo_objetivo: Optional[str] = None
+    producto_final: Optional[str] = None
     temp_objetivo: Optional[float] = 28.0
     ph_objetivo: Optional[float] = 7.2
-    lote_medio: Optional[str]
-    lote_sales: Optional[str]
-    lote_preinoculo: Optional[str]
-    lote_inoculo: Optional[str]
-    responsable_id: Optional[int]
-    destino_id: Optional[int]
-    fecha_siembra: Optional[date]
-    notas: Optional[str]
+    lote_medio: Optional[str] = None
+    lote_sales: Optional[str] = None
+    lote_preinoculo: Optional[str] = None
+    lote_inoculo: Optional[str] = None
+    responsable_id: Optional[int] = None
+    destino_id: Optional[int] = None
+    fecha_siembra: Optional[date] = None
+    notas: Optional[str] = None
 
 class CCMicroCreate(BaseModel):
-    experimento_id: Optional[int]
-    pedido_id: Optional[int]
-    cepa_id: Optional[int]
-    medio_id: Optional[int]
-    lote_medio: Optional[str]
-    lote_sales: Optional[str]
-    lote_preinoculo: Optional[str]
-    lote_inoculo: Optional[str]
-    ph: Optional[float]
-    do_value: Optional[float]
-    pureza: Optional[str]
+    experimento_id: Optional[int] = None
+    pedido_id: Optional[int] = None
+    cepa_id: Optional[int] = None
+    medio_id: Optional[int] = None
+    lote_medio: Optional[str] = None
+    lote_sales: Optional[str] = None
+    lote_preinoculo: Optional[str] = None
+    lote_inoculo: Optional[str] = None
+    ph: Optional[float] = None
+    do_value: Optional[float] = None
+    pureza: Optional[str] = None
     recuentos_ufc: List[Optional[float]] = []
     factor_ufc: float = 2.5
     dilucion_ufc: float = 1000000
@@ -139,63 +139,63 @@ class CCMicroCreate(BaseModel):
     recuentos_conidios_1_20: List[Optional[float]] = []
     dilucion_conidios: float = 100000000
     vol_conidios: float = 0.1
-    responsable_id: Optional[int]
-    destino_id: Optional[int]
-    observaciones: Optional[str]
+    responsable_id: Optional[int] = None
+    destino_id: Optional[int] = None
+    observaciones: Optional[str] = None
 
 class CCBMCreate(BaseModel):
-    experimento_id: Optional[int]
-    pedido_id: Optional[int]
-    cepa_id: Optional[int]
-    lote: Optional[str]
-    reactor_id: Optional[int]
-    concentracion: Optional[float]
-    proteinas_totales: Optional[float]
-    dna_libre: Optional[float]
-    pureza: Optional[float]
-    pureza_atb: Optional[float]
-    hr: Optional[float]
-    ph: Optional[float]
-    do_value: Optional[float]
-    responsable_id: Optional[int]
-    destino_id: Optional[int]
-    obs1: Optional[str]
-    obs2: Optional[str]
-    obs3: Optional[str]
+    experimento_id: Optional[int] = None
+    pedido_id: Optional[int] = None
+    cepa_id: Optional[int] = None
+    lote: Optional[str] = None
+    reactor_id: Optional[int] = None
+    concentracion: Optional[float] = None
+    proteinas_totales: Optional[float] = None
+    dna_libre: Optional[float] = None
+    pureza: Optional[float] = None
+    pureza_atb: Optional[float] = None
+    hr: Optional[float] = None
+    ph: Optional[float] = None
+    do_value: Optional[float] = None
+    responsable_id: Optional[int] = None
+    destino_id: Optional[int] = None
+    obs1: Optional[str] = None
+    obs2: Optional[str] = None
+    obs3: Optional[str] = None
 
 class PedidoCreate(BaseModel):
-    fecha_entrega: Optional[date]
+    fecha_entrega: Optional[date] = None
     solicitante: str
-    motivo: Optional[str]
+    motivo: Optional[str] = None
     retira: bool = False
     envia: bool = False
-    responsable_id: Optional[int]
-    observaciones: Optional[str]
+    responsable_id: Optional[int] = None
+    observaciones: Optional[str] = None
     items: List[dict] = []
 
 class InoculoCreate(BaseModel):
     tipo: str  # pre_inoculo | inoculo_1 | inoculo_2
     cepa_id: int
-    medio_id: Optional[int]
-    lote_medio: Optional[str]
-    lote_preinoculo: Optional[str]
-    lote_inoculo: Optional[str]
-    ufc_medio: Optional[float]
+    medio_id: Optional[int] = None
+    lote_medio: Optional[str] = None
+    lote_preinoculo: Optional[str] = None
+    lote_inoculo: Optional[str] = None
+    ufc_medio: Optional[float] = None
     recuentos_ufc: List[Optional[float]] = []
     factor: float = 2.5
     dilucion: float = 1000000
     recuentos_conidios: List[Optional[float]] = []
-    dilucion_conidios: Optional[float]
-    vol_conidios: Optional[float]
-    volumen_l: Optional[float]
-    pureza: Optional[str]
-    registro_pls: Optional[str]
-    responsable_id: Optional[int]
-    destino_id: Optional[int]
-    fecha_siembra: Optional[date]
-    fecha_produccion: Optional[date]
+    dilucion_conidios: Optional[float] = None
+    vol_conidios: Optional[float] = None
+    volumen_l: Optional[float] = None
+    pureza: Optional[str] = None
+    registro_pls: Optional[str] = None
+    responsable_id: Optional[int] = None
+    destino_id: Optional[int] = None
+    fecha_siembra: Optional[date] = None
+    fecha_produccion: Optional[date] = None
     dias_vigencia: int = 25
-    notas: Optional[str]
+    notas: Optional[str] = None
 
 # ─── AUTH ────────────────────────────────────────────────────
 
