@@ -486,11 +486,17 @@ def crear_pedido(data: PedidoCreate, db: Session = Depends(get_db), _=Depends(ge
         RETURNING id, numero
     """), {**data.dict(exclude={"items"}), "numero": numero}).fetchone()
     pid = row.id
-    for item in data.items:
+ for item in data.items:
         db.execute(text("""
             INSERT INTO pedido_muestras_items (pedido_id,rotulo,volumen_l,presentacion_id,observaciones)
             VALUES (:pedido_id,:rotulo,:volumen_l,:presentacion_id,:observaciones)
-        """), {**item, "pedido_id": pid})
+        """), {
+            "pedido_id": pid,
+            "rotulo": item.get("rotulo"),
+            "volumen_l": item.get("volumen_l"),
+            "presentacion_id": item.get("presentacion_id"),
+            "observaciones": item.get("observaciones"),
+        })
     db.commit()
     return {"id": pid, "numero": row.numero}
 
