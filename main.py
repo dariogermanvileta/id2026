@@ -188,6 +188,7 @@ class InoculoCreate(BaseModel):
     dilucion_conidios: Optional[float] = None
     vol_conidios: Optional[float] = None
     volumen_l: Optional[float] = None
+    do_value: Optional[float] = None
     pureza: Optional[str] = None
     registro_pls: Optional[str] = None
     responsable_id: Optional[int] = None
@@ -226,7 +227,8 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     token = create_token({"sub": str(u["id"]), "rol": u["rol"]})
     return {"access_token": token, "usuario": {
         "id": u["id"], "nombre": u["nombre"],
-        "iniciales": u["iniciales"], "rol": u["rol"]
+        "iniciales": u["iniciales"], "rol": u["rol"],
+        "email": u.get("email", "")
     }}
 
 # ─── MAESTROS ────────────────────────────────────────────────
@@ -551,12 +553,12 @@ def crear_inoculo(data: InoculoCreate, db: Session = Depends(get_db), _=Depends(
         INSERT INTO inoculos (tipo,lote,cepa_id,medio_id,lote_medio,lote_preinoculo,lote_inoculo,
             ufc_medio,recuentos_ufc,factor,dilucion,ufc_calculado,
             recuentos_conidios,conidios_calculado,dilucion_conidios,vol_conidios,
-            volumen_l,pureza,registro_pls,responsable_id,destino_id,
+            volumen_l,do_value,pureza,registro_pls,responsable_id,destino_id,
             fecha_siembra,fecha_produccion,dias_vigencia,notas)
         VALUES (:tipo,:lote,:cepa_id,:medio_id,:lote_medio,:lote_preinoculo,:lote_inoculo,
             :ufc_medio,:recuentos_ufc,:factor,:dilucion,:ufc_calculado,
             :recuentos_conidios,:conidios_calculado,:dilucion_conidios,:vol_conidios,
-            :volumen_l,:pureza,:registro_pls,:responsable_id,:destino_id,
+            :volumen_l,:do_value,:pureza,:registro_pls,:responsable_id,:destino_id,
             :fecha_siembra,:fecha_produccion,:dias_vigencia,:notas)
         RETURNING id, lote
     """), {
@@ -686,11 +688,13 @@ def actualizar_estado_medio_pedido(id: int, estado: str, db: Session = Depends(g
     db.commit()
     return {"ok": True}
 
-# ─── ELIMINACIÓN (solo admin) ────────────────────────────────
+# ─── ELIMINACIÓN (solo Dario Vileta) ─────────────────────────
+
+ADMIN_EMAIL = "dario.vileta@protergium.com"
 
 def _check_admin(user):
-    if user["rol"] != "admin":
-        raise HTTPException(status_code=403, detail="Solo los administradores pueden eliminar registros")
+    if user.get("email") != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Solo Dario Vileta puede eliminar registros")
 
 @app.delete("/pedidos/{id}", status_code=204)
 def eliminar_pedido(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
@@ -720,6 +724,12 @@ def eliminar_cc_bm(id: int, db: Session = Depends(get_db), user=Depends(get_curr
 def eliminar_medio_pedido(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     _check_admin(user)
     db.execute(text("DELETE FROM medios_pedidos WHERE id=:id"), {"id": id})
+    db.commit()
+
+@app.delete("/inoculos/{id}", status_code=204)
+def eliminar_inoculo(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    _check_admin(user)
+    db.execute(text("DELETE FROM inoculos WHERE id=:id"), {"id": id})
     db.commit()
 
 # ─── HEALTH ──────────────────────────────────────────────────
