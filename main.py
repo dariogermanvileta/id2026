@@ -256,10 +256,19 @@ def get_dashboard(db: Session = Depends(get_db), _=Depends(get_current_user)):
         "SELECT COUNT(*) FROM cc_microbiologico WHERE created_at > NOW() - INTERVAL '7 days'"
     )).scalar()
     inoculos_proceso = db.execute(text(
-        "SELECT COUNT(*) FROM experimentos WHERE estado='activo'"
+        "SELECT COUNT(*) FROM inoculos WHERE estado='activo'"
+    )).scalar()
+    inoculos_vencidos = db.execute(text(
+        "SELECT COUNT(*) FROM inoculos WHERE estado='vencido' OR (fecha_renovacion IS NOT NULL AND fecha_renovacion::date < CURRENT_DATE)"
     )).scalar()
     ensayos_activos = db.execute(text(
         "SELECT COUNT(*) FROM ensayos WHERE estado='activo'"
+    )).scalar()
+    ensayos_en_proceso = db.execute(text(
+        "SELECT COUNT(*) FROM ensayos WHERE estado='en_proceso'"
+    )).scalar()
+    ensayos_finalizados = db.execute(text(
+        "SELECT COUNT(*) FROM ensayos WHERE estado='finalizado'"
     )).scalar()
     inoculos_por_vencer = db.execute(text(
         "SELECT * FROM v_inoculos_por_vencer WHERE dias_restantes <= 7 ORDER BY dias_restantes"
@@ -278,7 +287,10 @@ def get_dashboard(db: Session = Depends(get_db), _=Depends(get_current_user)):
             "pedidos_activos": pedidos_activos,
             "controles_pendientes": controles_pendientes,
             "inoculos_proceso": inoculos_proceso,
+            "inoculos_vencidos": inoculos_vencidos,
             "ensayos_activos": ensayos_activos,
+            "ensayos_en_proceso": ensayos_en_proceso,
+            "ensayos_finalizados": ensayos_finalizados,
         },
         "alertas": {
             "inoculos_por_vencer": [dict(r._mapping) for r in inoculos_por_vencer],
@@ -591,7 +603,7 @@ def listar_inoculos(tipo: Optional[str] = None, estado: Optional[str] = None,
     """), params).fetchall()
     return {"items": [dict(r._mapping) for r in rows]}
 
-# ─── ENSAYOS ─────────────────────────────────────────────────
+# ─── ENSAYOS R&D ─────────────────────────────────────────────
 
 @app.get("/ensayos")
 def listar_ensayos(estado: Optional[str] = None, anio: Optional[int] = None,
@@ -601,23 +613,73 @@ def listar_ensayos(estado: Optional[str] = None, anio: Optional[int] = None,
     if estado: filters += " AND e.estado=:estado"; params["estado"] = estado
     if anio: filters += " AND e.anio=:anio"; params["anio"] = anio
     rows = db.execute(text(f"""
-        SELECT e.*, u.nombre as responsable_nombre
+        SELECT e.*,
+               ul.nombre as lider_nombre,
+               ur.nombre as responsable_nombre,
+               c.nombre as cepa_nombre, c.codigo as cepa_codigo,
+               m.nombre as medio_nombre,
+               r.nombre as reactor_nombre,
+               d.nombre as destino_nombre
         FROM ensayos e
-        LEFT JOIN usuarios u ON u.id = e.responsable_id
+        LEFT JOIN usuarios ul ON ul.id = e.lider_id
+        LEFT JOIN usuarios ur ON ur.id = e.responsable_id
+        LEFT JOIN cepas c ON c.id = e.cepa_id
+        LEFT JOIN medios_cultivo m ON m.id = e.medio_id
+        LEFT JOIN reactores r ON r.id = e.reactor_id
+        LEFT JOIN destinos d ON d.id = e.destino_id
         {filters}
-        ORDER BY e.anio DESC, e.numero ASC LIMIT :limit
+        ORDER BY e.anio DESC, e.numero DESC LIMIT :limit
     """), params).fetchall()
     return {"items": [dict(r._mapping) for r in rows]}
 
 @app.post("/ensayos", status_code=201)
 def crear_ensayo(data: dict, db: Session = Depends(get_db), _=Depends(get_current_user)):
     row = db.execute(text("""
-        INSERT INTO ensayos (numero,anio,titulo,descripcion,ruta_archivo,responsable_id,fecha_inicio)
-        VALUES (:numero,:anio,:titulo,:descripcion,:ruta_archivo,:responsable_id,:fecha_inicio)
+        INSERT INTO ensayos (numero,anio,titulo,descripcion,ruta_archivo,estado,fecha_inicio,
+                            lider_id,responsable_id,cepa_id,medio_id,reactor_id,
+                            volumen_l,cultivo_objetivo,producto_final,temp_objetivo,ph_objetivo,
+                            lote_medio,lote_sales,lote_preinoculo,lote_inoculo,
+                            destino_id,fecha_siembra,notas)
+        VALUES (:numero,:anio,:titulo,:descripcion,:ruta_archivo,:estado,:fecha_inicio,
+                :lider_id,:responsable_id,:cepa_id,:medio_id,:reactor_id,
+                :volumen_l,:cultivo_objetivo,:producto_final,:temp_objetivo,:ph_objetivo,
+                :lote_medio,:lote_sales,:lote_preinoculo,:lote_inoculo,
+                :destino_id,:fecha_siembra,:notas)
         RETURNING id
-    """), data).fetchone()
+    """), {
+        "numero": data.get("numero"),
+        "anio": data.get("anio", date.today().year),
+        "titulo": data.get("titulo"),
+        "descripcion": data.get("descripcion"),
+        "ruta_archivo": data.get("ruta_archivo"),
+        "estado": data.get("estado", "activo"),
+        "fecha_inicio": data.get("fecha_inicio"),
+        "lider_id": data.get("lider_id"),
+        "responsable_id": data.get("responsable_id"),
+        "cepa_id": data.get("cepa_id"),
+        "medio_id": data.get("medio_id"),
+        "reactor_id": data.get("reactor_id"),
+        "volumen_l": data.get("volumen_l"),
+        "cultivo_objetivo": data.get("cultivo_objetivo"),
+        "producto_final": data.get("producto_final"),
+        "temp_objetivo": data.get("temp_objetivo"),
+        "ph_objetivo": data.get("ph_objetivo"),
+        "lote_medio": data.get("lote_medio"),
+        "lote_sales": data.get("lote_sales"),
+        "lote_preinoculo": data.get("lote_preinoculo"),
+        "lote_inoculo": data.get("lote_inoculo"),
+        "destino_id": data.get("destino_id"),
+        "fecha_siembra": data.get("fecha_siembra"),
+        "notas": data.get("notas"),
+    }).fetchone()
     db.commit()
     return {"id": row.id}
+
+@app.patch("/ensayos/{id}/estado", status_code=200)
+def cambiar_estado_ensayo(id: int, estado: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    db.execute(text("UPDATE ensayos SET estado=:e WHERE id=:id"), {"e": estado, "id": id})
+    db.commit()
+    return {"ok": True}
 
 # ─── DROGUERO ────────────────────────────────────────────────
 
@@ -724,6 +786,12 @@ def eliminar_cc_bm(id: int, db: Session = Depends(get_db), user=Depends(get_curr
 def eliminar_medio_pedido(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     _check_admin(user)
     db.execute(text("DELETE FROM medios_pedidos WHERE id=:id"), {"id": id})
+    db.commit()
+
+@app.delete("/ensayos/{id}", status_code=204)
+def eliminar_ensayo(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    _check_admin(user)
+    db.execute(text("DELETE FROM ensayos WHERE id=:id"), {"id": id})
     db.commit()
 
 @app.delete("/inoculos/{id}", status_code=204)
