@@ -705,6 +705,7 @@ def registrar_consumo(data: dict, db: Session = Depends(get_db), _=Depends(get_c
 # ─── MEDIOS DE CULTIVO ───────────────────────────────────────
 
 class MedioPedidoCreate(BaseModel):
+    fecha_solicitada: Optional[date] = None
     fecha_requerida: Optional[date] = None
     medio: str
     volumen_l: Optional[float] = None
@@ -719,9 +720,9 @@ def crear_medio_pedido(data: MedioPedidoCreate, db: Session = Depends(get_db), _
     ultimo = db.execute(text("SELECT COALESCE(MAX(numero),0) FROM medios_pedidos")).scalar()
     numero = ultimo + 1
     row = db.execute(text("""
-        INSERT INTO medios_pedidos (numero,fecha_requerida,medio,volumen_l,presentacion,num_unidades,
+        INSERT INTO medios_pedidos (numero,fecha_solicitada,fecha_requerida,medio,volumen_l,presentacion,num_unidades,
             solicitante_id,responsable_id,observaciones)
-        VALUES (:numero,:fecha_requerida,:medio,:volumen_l,:presentacion,:num_unidades,
+        VALUES (:numero,:fecha_solicitada,:fecha_requerida,:medio,:volumen_l,:presentacion,:num_unidades,
             :solicitante_id,:responsable_id,:observaciones)
         RETURNING id, numero
     """), {**data.dict(), "numero": numero}).fetchone()
