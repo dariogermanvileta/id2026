@@ -801,6 +801,158 @@ def eliminar_inoculo(id: int, db: Session = Depends(get_db), user=Depends(get_cu
     db.execute(text("DELETE FROM inoculos WHERE id=:id"), {"id": id})
     db.commit()
 
+# ─── ACTUALIZACIÓN (editar registros) ────────────────────────
+
+@app.patch("/cc/micro/{id}", status_code=200)
+def actualizar_cc_micro(id: int, data: CCMicroCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    ufc = calcular_ufc(data.recuentos_ufc, data.factor_ufc, data.dilucion_ufc)
+    coni_10 = calcular_conidios(data.recuentos_conidios_1_10, data.dilucion_conidios, data.vol_conidios)
+    coni_20 = calcular_conidios(data.recuentos_conidios_1_20, data.dilucion_conidios, data.vol_conidios * 2)
+    db.execute(text("""
+        UPDATE cc_microbiologico SET
+            cepa_id=:cepa_id, lote_medio=:lote_medio, lote_sales=:lote_sales,
+            lote_preinoculo=:lote_preinoculo, lote_inoculo=:lote_inoculo,
+            ph=:ph, do_value=:do_value, pureza=:pureza,
+            recuentos_ufc=:recuentos_ufc, factor_ufc=:factor_ufc, dilucion_ufc=:dilucion_ufc,
+            ufc_calculado=:ufc_calculado,
+            recuentos_conidios_1_10=:recuentos_conidios_1_10,
+            conidios_1_10_calculado=:conidios_1_10,
+            dilucion_conidios=:dilucion_conidios, vol_conidios=:vol_conidios,
+            responsable_id=:responsable_id, destino_id=:destino_id,
+            observaciones=:observaciones
+        WHERE id=:id
+    """), {
+        **data.dict(),
+        "id": id,
+        "ufc_calculado": ufc,
+        "conidios_1_10": coni_10,
+        "recuentos_ufc": data.recuentos_ufc,
+        "recuentos_conidios_1_10": data.recuentos_conidios_1_10,
+    })
+    db.commit()
+    return {"ok": True, "ufc_calculado": ufc}
+
+@app.patch("/cc/biomolecular/{id}", status_code=200)
+def actualizar_cc_bm(id: int, data: CCBMCreate, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    db.execute(text("""
+        UPDATE cc_biomolecular SET
+            cepa_id=:cepa_id, lote=:lote, reactor_id=:reactor_id,
+            concentracion=:concentracion, proteinas_totales=:proteinas_totales,
+            dna_libre=:dna_libre, pureza=:pureza, pureza_atb=:pureza_atb, hr=:hr,
+            ph=:ph, do_value=:do_value,
+            responsable_id=:responsable_id, obs1=:obs1
+        WHERE id=:id
+    """), {**data.dict(), "id": id})
+    db.commit()
+    return {"ok": True}
+
+@app.patch("/inoculos/{id}", status_code=200)
+def actualizar_inoculo(id: int, data: dict, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    rufc = data.get("recuentos_ufc", [])
+    rconi = data.get("recuentos_conidios", [])
+    ufc = calcular_ufc(rufc, data.get("factor", 2.5), data.get("dilucion", 1e6))
+    conidios = calcular_conidios(rconi, data.get("dilucion_conidios") or 1e8, data.get("vol_conidios") or 0.1) if rconi else None
+    db.execute(text("""
+        UPDATE inoculos SET
+            cepa_id=:cepa_id, medio_id=:medio_id, lote_medio=:lote_medio,
+            lote_preinoculo=:lote_preinoculo, volumen_l=:volumen_l,
+            do_value=:do_value, pureza=:pureza,
+            recuentos_ufc=:recuentos_ufc, factor=:factor, dilucion=:dilucion,
+            ufc_calculado=:ufc_calculado,
+            recuentos_conidios=:recuentos_conidios, conidios_calculado=:conidios_calculado,
+            dilucion_conidios=:dilucion_conidios, vol_conidios=:vol_conidios,
+            responsable_id=:responsable_id, destino_id=:destino_id,
+            fecha_produccion=:fecha_produccion, dias_vigencia=:dias_vigencia, notas=:notas
+        WHERE id=:id
+    """), {
+        "id": id,
+        "cepa_id": data.get("cepa_id"),
+        "medio_id": data.get("medio_id"),
+        "lote_medio": data.get("lote_medio"),
+        "lote_preinoculo": data.get("lote_preinoculo"),
+        "volumen_l": data.get("volumen_l"),
+        "do_value": data.get("do_value"),
+        "pureza": data.get("pureza"),
+        "recuentos_ufc": rufc,
+        "factor": data.get("factor", 2.5),
+        "dilucion": data.get("dilucion", 1e6),
+        "ufc_calculado": ufc,
+        "recuentos_conidios": rconi,
+        "conidios_calculado": conidios,
+        "dilucion_conidios": data.get("dilucion_conidios"),
+        "vol_conidios": data.get("vol_conidios"),
+        "responsable_id": data.get("responsable_id"),
+        "destino_id": data.get("destino_id"),
+        "fecha_produccion": data.get("fecha_produccion"),
+        "dias_vigencia": data.get("dias_vigencia", 25),
+        "notas": data.get("notas"),
+    })
+    db.commit()
+    return {"ok": True, "ufc_calculado": ufc}
+
+@app.patch("/ensayos/{id}", status_code=200)
+def actualizar_ensayo(id: int, data: dict, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    db.execute(text("""
+        UPDATE ensayos SET
+            numero=:numero, anio=:anio, titulo=:titulo, descripcion=:descripcion,
+            ruta_archivo=:ruta_archivo, estado=:estado, fecha_inicio=:fecha_inicio,
+            lider_id=:lider_id, responsable_id=:responsable_id, cepa_id=:cepa_id,
+            medio_id=:medio_id, reactor_id=:reactor_id, volumen_l=:volumen_l,
+            cultivo_objetivo=:cultivo_objetivo, producto_final=:producto_final,
+            temp_objetivo=:temp_objetivo, ph_objetivo=:ph_objetivo,
+            lote_medio=:lote_medio, lote_sales=:lote_sales,
+            lote_preinoculo=:lote_preinoculo, lote_inoculo=:lote_inoculo,
+            destino_id=:destino_id, fecha_siembra=:fecha_siembra, notas=:notas
+        WHERE id=:id
+    """), {
+        "id": id,
+        "numero": data.get("numero"),
+        "anio": data.get("anio", date.today().year),
+        "titulo": data.get("titulo"),
+        "descripcion": data.get("descripcion"),
+        "ruta_archivo": data.get("ruta_archivo"),
+        "estado": data.get("estado", "activo"),
+        "fecha_inicio": data.get("fecha_inicio"),
+        "lider_id": data.get("lider_id"),
+        "responsable_id": data.get("responsable_id"),
+        "cepa_id": data.get("cepa_id"),
+        "medio_id": data.get("medio_id"),
+        "reactor_id": data.get("reactor_id"),
+        "volumen_l": data.get("volumen_l"),
+        "cultivo_objetivo": data.get("cultivo_objetivo"),
+        "producto_final": data.get("producto_final"),
+        "temp_objetivo": data.get("temp_objetivo"),
+        "ph_objetivo": data.get("ph_objetivo"),
+        "lote_medio": data.get("lote_medio"),
+        "lote_sales": data.get("lote_sales"),
+        "lote_preinoculo": data.get("lote_preinoculo"),
+        "lote_inoculo": data.get("lote_inoculo"),
+        "destino_id": data.get("destino_id"),
+        "fecha_siembra": data.get("fecha_siembra"),
+        "notas": data.get("notas"),
+    })
+    db.commit()
+    return {"ok": True}
+
+@app.patch("/pedidos/{id}", status_code=200)
+def actualizar_pedido_info(id: int, data: dict, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    db.execute(text("""
+        UPDATE pedidos_muestras SET
+            solicitante=:solicitante, motivo=:motivo, fecha_entrega=:fecha_entrega,
+            responsable_id=:responsable_id, observaciones=:observaciones,
+            updated_at=NOW()
+        WHERE id=:id
+    """), {
+        "id": id,
+        "solicitante": data.get("solicitante"),
+        "motivo": data.get("motivo"),
+        "fecha_entrega": data.get("fecha_entrega"),
+        "responsable_id": data.get("responsable_id"),
+        "observaciones": data.get("observaciones"),
+    })
+    db.commit()
+    return {"ok": True}
+
 # ─── HEALTH ──────────────────────────────────────────────────
 
 @app.get("/health")
